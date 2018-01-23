@@ -11,7 +11,7 @@ It is released along with the Cacti Neighbor plugin as the mapping functionality
 
 ## Usage
 
-**Usage: php add_site.php [options] **
+Usage: php add_site.php [options]
 
 ### Site options:
 ```
