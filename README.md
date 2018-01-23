@@ -31,7 +31,7 @@ To limit the interfaces, we can select those with a certain description, using C
 ```
 	xdp.interface_alias	begins with	CORE:
 AND	xdp.type		matches		cdp
-AND	xdp.neighbor\_interface\_ip	is not empty
+AND	xdp.neighbor_interface_ip	is not empty
 ```
 
 To check that the rules are working correctly, the "Show Matching Devices" and "Show Matching Objects" links may be used.
