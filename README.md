@@ -23,16 +23,16 @@ The "Neighbor Rules" link is found in the Automation menu group on the left of t
 ### Rule Example
 
 In order to draw a map of a Core network, we could use the following example criteria to limit the hosts:
-
+```
 	h.description CONTAINS "-pe1"
 OR 	h.description CONTAINS "-p1"
-
+```
 To limit the interfaces, we can select those with a certain description, using CDP, and having an IP address:
-
+```
 	xdp.interface_alias	begins with	CORE:
 AND	xdp.type		matches		cdp
 AND	xdp.neighbor\_interface\_ip	is not empty
-
+```
 
 To check that the rules are working correctly, the "Show Matching Devices" and "Show Matching Objects" links may be used.
 
@@ -43,10 +43,10 @@ This plugin was developed on the v1.x versions of Cacti and is therefore unlikel
 The simplest installation is to untar the source code into your Cacti plugins source directory (e.g. /usr/share/cacti/plugins/).
 
 Alternatively you may clone the github source directly into the plugins directory with the command:
-
+```
 cd /usr/share/cacti/plugins
 git clone https://github.com/ahouston/plugin_neighbor.git neighbor
-
+```
 Please note that the directory must be called 'neighbor'.
 
 ## Bugs and Feature Enhancements
