@@ -29,7 +29,7 @@ It is released along with the Cacti Neighbor plugin as the mapping functionality
     --notes=[Site Notes]        e.g. 'Email: support@telehouse.net'
 ```
 ### Geocoding Options:
-Get and API key from: **https://developers.google.com/maps/documentation/geocoding/get-api-key**
+Get an API key from: **https://developers.google.com/maps/documentation/geocoding/get-api-key**
 ```
     --geocode   Try to turn addresses into GPS coordinates
     --geocode-api-key Your Google API key
