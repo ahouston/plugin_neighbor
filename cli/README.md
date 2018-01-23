@@ -15,18 +15,18 @@ It is released along with the Cacti Neighbor plugin as the mapping functionality
 
 ### Site options:
 ```
-    --name=[Site Name]          e.g. 'Telehouse East'
-    --addr1=[Address Line 1]    e.g. 'Coriander Road'
-    --addr2=[Address Line 2]    e.g. 'Poplar'
-    --city=[City]               e.g. 'London''
-    --state=[State]             e.g. 'London'
+    --name=[Site Name]          	e.g. 'Telehouse East'
+    --addr1=[Address Line 1]    	e.g. 'Coriander Road'
+    --addr2=[Address Line 2]    	e.g. 'Poplar'
+    --city=[City]               	e.g. 'London''
+    --state=[State]             	e.g. 'London'
     --postcode=[Zip or Postcode]        e.g. 'E14 2AA'
-    --country=[Country]         e.g. 'United Kingdom'
-    --timezone=[Timezone]       e.g. 'Europe/London'
-    --latitude=[Latitutude]     e.g. '51.5115172'
-    --longitude=[Longitude]     e.g. '-0.0017868'
-    --alt-name=[Alt. Name]      e.g. 'LINX Telehouse'
-    --notes=[Site Notes]        e.g. 'Email: support@telehouse.net'
+    --country=[Country]         	e.g. 'United Kingdom'
+    --timezone=[Timezone]       	e.g. 'Europe/London'
+    --latitude=[Latitutude]     	e.g. '51.5115172'
+    --longitude=[Longitude]     	e.g. '-0.0017868'
+    --alt-name=[Alt. Name]      	e.g. 'LINX Telehouse'
+    --notes=[Site Notes]        	e.g. 'Email: support@telehouse.net'
 ```
 ### Geocoding Options:
 Get an API key from: **https://developers.google.com/maps/documentation/geocoding/get-api-key**
