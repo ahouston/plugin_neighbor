@@ -29,12 +29,12 @@ It is released along with the Cacti Neighbor plugin as the mapping functionality
     --notes=[Site Notes]        e.g. 'Email: support@telehouse.net'
 ```
 ### Geocoding Options:
+Get and API key from: **https://developers.google.com/maps/documentation/geocoding/get-api-key**
 ```
     --geocode   Try to turn addresses into GPS coordinates
-
-    --geocode-api-key   Your Google API key - https://developers.google.com/maps/documentation/geocoding/get-api-key
-
+    --geocode-api-key Your Google API key
     --proxy     Proxy server to use in http://proxy.server:port format
+
 ```
 ### Device Map Options:
 ```
@@ -68,9 +68,9 @@ please check your filters work first!
 
 There are some macros which will be expanded in the --notes field:
 
- %DATE% - The current date in mysql format
- %TIME% - The current time in mysql format
- %GOOGLE_MAPS_URL% - The link to Google Maps for this sites GPS coordinates
+* **%DATE%** - The current date in mysql format
+* **%TIME%** - The current time in mysql format
+* **%GOOGLE_MAPS_URL%** - The link to Google Maps for this sites GPS coordinates
 
 ## Bugs and Feature Enhancements
    
