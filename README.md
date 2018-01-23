@@ -36,7 +36,7 @@ AND	xdp.neighbor_interface_ip	is not empty
 
 To check that the rules are working correctly, the "Show Matching Devices" and "Show Matching Objects" links may be used.
 
-##Installation
+## Installation
 
 This plugin was developed on the v1.x versions of Cacti and is therefore unlikely to work correctly on the older 0.8.x versions.
 
