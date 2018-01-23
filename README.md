@@ -1,76 +1,60 @@
-# hmib
+# neighbor
 
-The hmib plugin is designed to collect SNMP information from Cacti Devices that support the SNMP Host Resources Mib structure.  This SNMP information includes performance metrics like:
+The neighbor plugin enables the collection of interface and routing neighborships, which can then be used to generate a dynamic map of your network. 
 
-* CPU utilization, 
-* Running processes, 
-* Running applications,
-* Physical and Virtual Memory utilization,
-* Hardware details,
-* Device details, 
-* Storage details, 
-* Installed software
+Interface neighbors can be discovered using:
+* CDP or LLDP
+* IP Subnet information - i.e. interfaces in the same subnet are neighbors
+* Interface descriptions using regular expressions
 
-This Host Mib information in then grouped into a series of Dashboards for Cacti Administrators to be able to view the status of their Devices.  When installed Cacti will automatically discover your Cacti Devices that support the Host Resources MIB and add them to hmib.  Once there, you can classify each of the discovered Devices operating system, and when that step is completed properly, the Cacti 'hmib' tab will classify system usage by Operating System.
+Routing protocol neighbors:
+* OSPF
+* BGP
+* IS-IS
 
-The hmib plugin also includes several Graph Templates that allow you to track application memory and cpu utilization accross you environment as well as several other Cacti Graphs.
+The collection of the various types of neighbor can be controlled both at a global level in the settings, or at a host level.
 
-A few of these Cacti Graph Templates include script files that will allow Cacti to leverage the HMIB data for graphing instead of directly accessing the Cacti Devices for that information.  This appoach leads to reduce Cacti polling times due to the elimination of latency obtaining the information.
+## Rules
+
+In order to create a map of your network, a rule set needs to be defined which determines which devices you are interested in and the type of neighbor. Anyone familiar with the Automate plugin functionality should be comfortable with the interface as the code for the Neighbor plugin borrows heavily from this existing code base.
+
+The "Neighbor Rules" link is found in the Automation menu group on the left of the console.
+
+### Rule Example
+
+In order to draw a map of a Core network, we could use the following example criteria to limit the hosts:
+
+	h.description CONTAINS "-pe1"
+OR 	h.description CONTAINS "-p1"
+
+To limit the interfaces, we can select those with a certain description, using CDP, and having an IP address:
+
+	xdp.interface_alias	begins with	CORE:
+AND	xdp.type		matches		cdp
+AND	xdp.neighbor\_interface\_ip	is not empty
+
+
+To check that the rules are working correctly, the "Show Matching Devices" and "Show Matching Objects" links may be used.
 
 ##Installation
 
-Just like any other Cacti plugin, untar the package to the Cacti plugins directory, rename the directory to 'hmib', and then from Cacti's Plugin Management interface, Install and Enable the pluign.
+This plugin was developed on the v1.x versions of Cacti and is therefore unlikely to work correctly on the older 0.8.x versions.
 
-Once you have installed the hmib plugin, you need to install it's Device Template, and then in addition, you must copy the script server script files to Cacti's scripts directory.  Those files are located in the plugins templates/scripts directory.  In addition, you should copy the script server resource files to Cacti's resource/script_server directory.  Once there, graphing for Cacti's build in Host Resources Mib objects will come from the hmib plugin.  Make backups of all files replaced, just in case you decide to remove the plugin at a later date.
+The simplest installation is to untar the source code into your Cacti plugins source directory (e.g. /usr/share/cacti/plugins/).
 
-Once everything is in place, you need to goto Cacti's Settings page and locate the 'Host MIB' tab and complete the hmib's setup.  From there, you can set collections frequencies and levels of parallelism.  You can also turn on the automation of Cacti Devices and Graphs as well.  The hmib plugin also monitors application usage over time.
+Alternatively you may clone the github source directly into the plugins directory with the command:
+
+cd /usr/share/cacti/plugins
+git clone https://github.com/ahouston/plugin_neighbor.git neighbor
+
+Please note that the directory must be called 'neighbor'.
 
 ## Bugs and Feature Enhancements
    
-Bug and feature enhancements for the hmib plugin are handled in GitHub.  If you find a first search the Cacti forums for a solution before creating an issue in GitHub.
+Bug and feature enhancements for the neighbor plugin are handled in GitHub.
+All reasonable feature requests will be entertained!
 
 ## ChangeLog
 
---- 3.1 ---
-* feature: More of the user interface using ajax callbacks
-* issue#8: Correct sql errors in hmib.php page
-
---- 3.0 ---
-* Cacti 1.0 Compatibility 
-
---- 2.0 ---
-* bug: Template detection is automatic now based upon Hash
-* feature: Add new Summary Graph Template for average and peak memory use by process
-* bug: trim core# off of processes that include that variable in the name of the binary
-* bug: cpu graphs were still using snmp and not the hmib information, migrate to hmib.
-* note: this may cause existing cpu graphs to break.
-* feature: Support new Theme engine
-
---- 1.5 ---
-* bug#0002123: hmib does not handle sysContact or other field that contains an apostrophe
-* bug: Remove regex support for SysDesc as it is breaking discovery
-
---- 1.4 ---
-* bug: Performance issues when viewing pages
-* bug: Pagination issues with Use History
-
---- 1.3 ---
-* bug: Workaround bug in IE6
-* bug: Don't throw warning when using 'Use History'
-* feature: Support Ugroup Plugin
-
---- 1.2 ---
-* feature: provide use history interface
-* bug: make UI W3C compliant
-* bug: respect Host edit permissions
-* bug: general UI inconsistencies
-* bug: rescan desice was broken
-* bug: fix various drill downs from summary page
-* feature: allow sysDescMatch and sysObjectIDMatch use regex
-
---- 1.1 ---
-* big: issue when deleting dead hosts
-* feature: provide statistics for visualization of hmib runtime
-
---- 1.0 ---
-* Initial release
+--- 0.1 ---
+* Preliminary Commit
