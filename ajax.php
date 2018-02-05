@@ -44,6 +44,15 @@ switch (get_request_var('action')) {
 	case 'ajax_map_list':
 		ajax_map_list();
 		break;
+	case 'ajax_neighbors_xdp':
+		ajax_neighbors_fetch('xdp');
+		break;
+	case 'ajax_neighbors_ipv4':
+		ajax_neighbors_fetch('ipv4');
+		break;
+	case 'ajax_neighbors_ifalias':
+		ajax_neighbors_fetch('ifalias');
+		break;
 	default:
 		header('Content-Type: application/json');
 		break;
@@ -132,7 +141,7 @@ function ajax_map_save_options($format = 'jsonp',$ajax = true) {
 		$num_items = sizeof($items);
 		
 		foreach ($projected as $item) {
-		//	error_log("Item:".print_r($item,true));
+			error_log("Saving Item:".print_r($item,true));
 			db_execute_prepared("INSERT into plugin_neighbor__user_map values (?,?,?,?,?,?,?,?,?)", array(
 				'',
 				$user_id,
@@ -140,7 +149,7 @@ function ajax_map_save_options($format = 'jsonp',$ajax = true) {
 				$item['id'],
 				$item['x'],
 				$item['y'],
-				$item['mass'],
+				isset($item['mass']) ? $item['mass'] : 1,
 				$item['label'],
 				$seed
 			));
@@ -164,5 +173,23 @@ function ajax_map_save_options($format = 'jsonp',$ajax = true) {
 	}	
 	
 }
+
+function ajax_neighbors_fetch($table = '', $format = 'jsonp',$ajax = true) {
+	
+	$format = $format ? $format  : (isset_request_var('format') ? get_request_var('format') : '');
+	$query_callback = isset($_GET['callback']) ? $_GET['callback'] : "Callback";
+	$results = db_fetch_assoc('SELECT * FROM plugin_neighbor__'.$table);
+	$json = json_encode($results);
+	$jsonp = sprintf("%s({\"Response\":[%s]})", $query_callback,json_encode($results,JSON_PRETTY_PRINT));
+	
+	if ($ajax) 	{
+		header('Content-Type: application/json');
+		print $format == 'jsonp' ? $jsonp : $json;
+	}
+	else {
+		return($json);
+	}
+}
+
 
 

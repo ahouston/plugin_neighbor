@@ -109,7 +109,7 @@ function save() {
 			else 			{ raise_message(2); }
 		}
 
-		header('Location: neighbor_graph_rules.php?header=false&action=edit&id=' . (empty($rule_id) ? get_nfilter_request_var('id') : $rule_id));
+		header('Location: neighbor_rules.php?header=false&action=edit&id=' . (empty($rule_id) ? get_nfilter_request_var('id') : $rule_id));
 	}
 	elseif (isset_request_var('save_component_neighbor_graph_rule_item')) {
 		/* ================= input validation ================= */
@@ -133,9 +133,9 @@ function save() {
 		}
 
 		if (is_error_message()) {
-			header('Location: neighbor_graph_rules.php?header=false&action=item_edit&id=' . get_request_var('id') . '&item_id=' . (empty($item_id) ? get_request_var('item_id') : $item_id) . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_ACTION);
+			header('Location: neighbor_rules.php?header=false&action=item_edit&id=' . get_request_var('id') . '&item_id=' . (empty($item_id) ? get_request_var('item_id') : $item_id) . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_ACTION);
 		} else {
-			header('Location: neighbor_graph_rules.php?header=false&action=edit&id=' . get_request_var('id') . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_ACTION);
+			header('Location: neighbor_rules.php?header=false&action=edit&id=' . get_request_var('id') . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_ACTION);
 		}
 	} elseif (isset_request_var('save_component_neighbor_match_item')) {
 		/* ================= input validation ================= */
@@ -164,9 +164,9 @@ function save() {
 		}
 
 		if (is_error_message()) {
-			header('Location: neighbor_graph_rules.php?header=false&action=item_edit&id=' . get_request_var('id') . '&item_id=' . (empty($item_id) ? get_request_var('item_id') : $item_id) . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_MATCH);
+			header('Location: neighbor_rules.php?header=false&action=item_edit&id=' . get_request_var('id') . '&item_id=' . (empty($item_id) ? get_request_var('item_id') : $item_id) . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_MATCH);
 		} else {
-			header('Location: neighbor_graph_rules.php?header=false&action=edit&id=' . get_request_var('id') . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_MATCH);
+			header('Location: neighbor_rules.php?header=false&action=edit&id=' . get_request_var('id') . '&rule_type=' . AUTOMATION_RULE_TYPE_GRAPH_MATCH);
 		}
 	} else {
 		raise_message(2);

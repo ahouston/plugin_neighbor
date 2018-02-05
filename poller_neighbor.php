@@ -232,7 +232,7 @@ function debug($message) {
 	global $debug;
 	if ($debug) {
 		echo 'DEBUG: ' . trim($message) . "\n";
-		cacti_log('POLLER NEIGHBOR: ' . trim($message));
+		cacti_log('NEIGHBOR:' . trim($message),TRUE,'NEIGHBOR');
 	}
 }
 
@@ -554,6 +554,7 @@ function discoverIpNeighbors($host) {
         }
 	
 	$ipTable = sortByOid($ipMib);
+	
 	$ipParsed = array();
 	$ifTranslate = array();
 	//print_r($ipTable);		
@@ -564,7 +565,7 @@ function discoverIpNeighbors($host) {
 				$ipAddress = isset($matches[1]) ? $matches[1] : '';
 				$ipParsed[$ipAddress]['snmp_id'] = $index;
 				$ipParsed[$ipAddress]['numeric'] = ip2long($ipAddress);		// Store for later comparison in the nested loop
-				$ifTranslate[$index] = $ipAddress;								// We need to be able to translate snmp_index to IP in the VRF section
+				$ifTranslate[$index] = $ipAddress;							// We need to be able to translate snmp_index to IP in the VRF section
 				// debug("Found IP: $ipAddress with snmp_index: $index");
 				//print "Found: [$index] => $snmpIndex => $val\n";
 				//print_r($ipToSnmp);
@@ -594,21 +595,26 @@ function discoverIpNeighbors($host) {
 		//ciscoVrf
 	}
 
-	//debug(print_r($ipParsed,1));
+	debug(print_r($ipParsed,1));
 	// exit;
 	// Update the Database
 
 	// First update the ipv4 cache table
+	$vrfMapping = get_neighbor_vrf_maps();
 	
 	foreach ($ipParsed as $ipAddress => $record) { 
 
-		
 		// Create a unique hash of the neighbor based on the record
 		$myHostId = $host['id'];
 		$snmpId 	= isset($record['snmp_id']) ? $record['snmp_id'] : "";
 		$ipSubnet 	= isset($record['netmask']) ? $record['netmask'] : "";
 		$vrf 		= isset($record['vrf']) ? $record['vrf'] : "";
 		
+		if (!$vrf) {		// Lets see if we have a VRF Mapping rule
+			$vrf = isset($vrfMapping[$myHostId][$ipAddress]['vrf']) && ($vrfMapping[$myHostId][$ipAddress]['vrf']) ? $vrfMapping[$myHostId][$ipAddress]['vrf'] : "";		
+		}
+		
+		debug("ipSubnet: $ipSubnet, VRF: $vrf");
 		if ($ipSubnet == '255.255.255.255') { continue;} 					// No loopbacks
 		
 		db_execute_prepared("REPLACE  INTO `plugin_neighbor__ipv4_cache` 
@@ -634,7 +640,7 @@ function discoverIpNeighbors($host) {
 	
 	$neighsFound = 0;
 	$totalSearched = 0;
-	
+	//cacti_tag_log("NEIGHBORS:","ipCache:".print_r($myIpCache,1));
 	foreach ($myIpCache as $vrf => $vrfRec) {
 		
 		foreach ($vrfRec as $ipAddress1 => $record1) {
@@ -642,13 +648,17 @@ function discoverIpNeighbors($host) {
 			foreach ($ipCache as $allVrf => $allVrfRec) { 
 				// Worried about performance of this double iteration - maybe quicker to sort and find first match?	
 				foreach ($allVrfRec as $ipAddress2 => $record2) {
-								
+						
+						// cacti_tag_log("NEIGHBOR POLLER: vrf=$vrf, ipAddress1= $ipAddress1, ipAddress2= $ipAddress2");
+						
 						if ($record1['ip_address_num'] == $record2['ip_address_num']) { continue; }
 						if (($record1['host_id'] == $record2['host_id']) && ($record1['snmp_id']) == $record2['snmp_id']) { continue; }		// Catches HSRP & VRRP sillyness
 						if ($record1['ip_subnet_num'] < $minCorrelation) { 	continue; }		// Catches addresses not meeting min correlation (e.g. /30)
 						$totalSearched++;
+						// cacti_tag_log("NEIGHBOR POLLER: vrf=$vrf, ipAddress1= $ipAddress1, ipAddress2= $ipAddress2 - Past correlation check. totalSearched: $totalSearched, neighsFound: $neighsFound");
 						
 						if (ipSubnetCheck($ipAddress1,$record1['ip_netmask'],$ipAddress2,$record2['ip_netmask'])) {
+							cacti_tag_log("NEIGHBOR POLLER:","Match found for ipAddress1= $ipAddress1, ipAddress2= $ipAddress2");
 							// Order the arrays from lowest host_id
 							$first = $record1['host_id'] < $record2['host_id'] ? $record1 : $record2;
 							$second = $record1['host_id'] < $record2['host_id'] ? $record2 : $record1;
@@ -677,18 +687,21 @@ function discoverIpNeighbors($host) {
 	$neighCount = 0;
 	$hostCache = array();											// Let's cache the findCactiHost output
 	$intCache = array();											// Let's cache the findCactiInterface output
+	cacti_tag_log("NEIGHBORS:","ipNeigbors:".print_r($ipNeighbors,1));
 	foreach ($ipNeighbors as $hostKey => $ipNeighbor) {
 		list($myHostId,$neighHostId) = explode(":",$hostKey);
 		
 		$hostCache[$myHostId] = isset($hostCache[$myHostId]) ? $hostCache[$myHostId] : getCactiHostById($myHostId);
 		$hostCache[$neighHostId] = isset($hostCache[$neighHostId]) ? $hostCache[$neighHostId] : getCactiHostById($neighHostId);
 		
-	foreach ($ipNeighbor as $snmpKey => $record) {
+		foreach ($ipNeighbor as $snmpKey => $record) {
 			list ($mySnmpId, $neighSnmpId) = explode(":",$snmpKey);
 			// print "$hostKey => $snmpKey record:"; print_r($record); exit;
 			
 			$intCache[$myHostId][$mySnmpId] = isset($intCache[$myHostId][$mySnmpId]) ? $intCache[$myHostId][$mySnmpId] : findCactiInterface($myHostId,'',$mySnmpId);
 			$intCache[$neighHostId][$neighSnmpId] = isset($intCache[$neighHostId][$neighSnmpId]) ? $intCache[$neighHostId][$neighSnmpId] : findCactiInterface($neighHostId,'',$neighSnmpId);
+		
+			if (!($intCache[$myHostId][$mySnmpId] && $intCache[$neighHostId][$neighSnmpId])) { continue; } // We must at least find the neighbor's interfaces
 			
 			$hashArray = array( 'ipv4',$record['first']['vrf'],$myHostId,$hostCache[$myHostId]['description'],$mySnmpId,
 								$intCache[$myHostId][$mySnmpId]['ifDescr'], $intCache[$myHostId][$mySnmpId]['ifAlias'],
@@ -696,7 +709,7 @@ function discoverIpNeighbors($host) {
 								$neighHostId,$hostCache[$neighHostId]['description'],$neighSnmpId,
 								$intCache[$neighHostId][$neighSnmpId]['ifDescr'], $intCache[$neighHostId][$neighSnmpId]['ifAlias'],
 								$record['second']['ip_address'], $record['second']['ip_netmask'],$intCache[$neighHostId][$neighSnmpId]['ifHwAddr']);
-			
+			debug("hashArray:".print_r($hashArray,1));
 			
 			$neighArray = array($record['first']['vrf'],$hostKey,$record['first']['ip_address'],$record['second']['ip_address']);
 			$hostArray = array($hostCache[$myHostId]['description'],$hostCache[$neighHostId]['description']);
@@ -723,6 +736,11 @@ function discoverIpNeighbors($host) {
 	//print_r($ipNeighbors);
 	//exit;	
 }
+
+
+
+
+
 
 // Check if two IP / Netmask combinations are in the same subnet
 
@@ -1086,6 +1104,13 @@ function convertTimeticks($timeticks) {
 		$formatTime = "$intDays Days $intHours:$intMinutes:$intSeconds";
 	}
 	return $formatTime;
+}
+
+function cacti_tag_log($tag="",$message="") {
+	$lineArr = explode("\n",$message);
+	foreach ($lineArr as $line) {
+		cacti_log($line,TRUE,$tag);
+	}
 }
 
 

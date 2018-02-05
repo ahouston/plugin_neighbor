@@ -108,17 +108,24 @@ function save_rule() {
 		$save['id'] = get_nfilter_request_var('id');
 		$save['name'] = form_input_validate(get_nfilter_request_var('name'), 'name', '', false, 3);
 		$save['description'] = form_input_validate(get_nfilter_request_var('description'), 'description', '', false, 3);
-		$save['neighbor_type'] = form_input_validate(get_nfilter_request_var('neighbor_type'), 'neighbor_type', '', false, 3);
-		$save['neighbor_options'] = form_input_validate(get_nfilter_request_var('neighbor_options'), 'neighbor_options', '', false, 3);
-		$save['enabled'] = (isset_request_var('enabled') ? 'on' : '');
-		# if (sizeof($save['neighbor_options'] )) { $save['neighbor_options']  = implode(",",$save['neighbor_options']); }
 		
-		error_log("SAVE is:".print_r($save,1));
+		if ($save['id']) {
+			$save['neighbor_type'] = form_input_validate(get_nfilter_request_var('neighbor_type'), 'neighbor_type', '', false, 3);
+			$save['neighbor_options'] = form_input_validate(get_nfilter_request_var('neighbor_options'), 'neighbor_options', '', false, 3);
+			$save['enabled'] = (isset_request_var('enabled') ? 'on' : '');
+		}
+		
+		error_log("save_rule(): SAVE is=".print_r($save,1));
 		if (!is_error_message()) {
 			error_log("SQL Saving..");
 			$rule_id = sql_save($save, 'plugin_neighbor__rules');
 			if ($rule_id) 	{ raise_message(1); }
 			else 			{ raise_message(2); }
+		}
+		else {
+			global $messages;
+			error_log("Validation errors\nDEBUG Sessions:".print_r($_SESSION,1));
+			
 		}
 
 		header('Location: neighbor_rules.php?header=false&action=edit&id=' . (empty($rule_id) ? get_nfilter_request_var('id') : $rule_id));
@@ -381,7 +388,7 @@ function neighbor_rules_item_edit() {
 		form_hidden_box('save_component_neighbor_graph_rule_item', '1', '');
 	}
 
-	form_save_button('neighbor_rules.php?action=edit&id=' . get_request_var('id') . '&rule_type='. get_request_var('rule_type'));
+	form_save_button('neighbor_rules.php?action=edit&id=' . get_request_var('id'));
 
 	?>
 	<script type='text/javascript'>
@@ -499,7 +506,6 @@ function neighbor_rules_edit() {
 	if (isset_request_var('description')) 		{ set_request_var('description', sanitize_search_string(get_request_var('description')));}
 	if (isset_request_var('neighbor_type')) 	{ set_request_var('neighbor_type', sanitize_search_string(get_request_var('neighbor_type')));}
 	if (isset_request_var('neighbor_options')) 	{ set_request_var('neighbor_options', sanitize_search_string(get_request_var('neighbor_options')));}
-	if (isset_request_var('snmp_query_id')) 	{ set_request_var('snmp_query_id', sanitize_search_string(get_request_var('snmp_query_id')));}
 
 	/* handle show_rule mode */
 	if (isset_request_var('show_rule')) {
@@ -722,22 +728,6 @@ function neighbor_rules_edit() {
 	?>
 	<script type='text/javascript'>
 		
-	$(function() {
-		
-		$('#no_neighbor_options').multiselect({
-			selectedList: 5,
-			checkAllText: "Check All",
-			noneSelectedText: '<?php print __('Select the neighbor types to consider');?>',
-			header: true,
-			height: 54,
-			multipleRow: true,
-			multipleRowWidth: 120,
-			minWidth: 450
-		});
-	
-	
-	});
-	
 	function applySNMPQueryIdChange() {
 		strURL  = 'neighbor_rules.php?action=qedit';
 		strURL += '&id=' + $('#id').val();

@@ -22,7 +22,7 @@
  +-------------------------------------------------------------------------+
 */
 
-include_once($config['base_path'] . '/include/auth.php');
+//include_once($config['base_path'] . '/include/auth.php');
 include_once($config['base_path'] . '/lib/data_query.php');
 //include_once('./plugins/neighbor/lib/neighbor_functions.php');
 
@@ -49,7 +49,7 @@ function plugin_neighbor_install () {
 	api_plugin_register_hook('neighbor', 'device_remove', 'neighbor_device_remove', 'setup.php');
 
 	api_plugin_register_realm('neighbor', 'neighbor.php,ajax.php', __('Plugin -> Neighbors'), 1);
-	api_plugin_register_realm('neighbor', 'neighbor_rules.php,neighbor_tree_rules.php,neighbor_graph_rules.php', __('Plugin -> Configure Neighbor Rules', 'thold'), 1);
+	api_plugin_register_realm('neighbor', 'neighbor_rules.php,neighbor_tree_rules.php,neighbor_graph_rules.php,neighbor_vrf_rules.php', __('Plugin -> Configure Neighbor Rules', 'thold'), 1);
 	
 	include_once($config['base_path'] . '/plugins/neighbor/lib/neighbor_sql_tables.php');
 	neighbor_setup_table ();
@@ -127,7 +127,7 @@ function neighbor_check_dependencies() {
 function neighbor_poller_bottom() {
 
 	global $config;
-	include_once($config['base_path'] . 'plugins/neighbor/lib/polling.php');
+	include_once($config['base_path'] . '/plugins/neighbor/lib/polling.php');
 	process_poller_deltas();
 	exec_background(read_config_option('path_php_binary'), ' -q ' . $config['base_path'] . '/plugins/neighbor/poller_neighbor.php -M');
 }
@@ -266,8 +266,7 @@ function neighbor_config_settings () {
 }
 
 function neighbor_config_arrays() {
-	global $menu, $messages, $neighbor_frequencies;
-	global $hrSystem, $hrSWRun, $hrSWRunPerf, $hrSWInstalled, $hrStorage, $hrDevices, $hrProcessor;
+	global $menu, $messages, $neighbor_frequencies, $menu_glyphs;
 
 	$neighbor_frequencies = array(
 		-1    => __('Disabled'),
@@ -287,8 +286,19 @@ function neighbor_config_arrays() {
 	}
 	
 	# Remove
-	$menu[__('Automation')]['plugins/neighbor/neighbor_rules.php'] = __('Neighbor Rules');
+	//$menu[__('Automation')]['plugins/neighbor/neighbor_rules.php'] = __('Neighbor Rules');
 
+	$menu2 = array ();
+	foreach ($menu as $temp => $temp2 ) {
+		$menu2[$temp] = $temp2;
+		if ($temp == __('Automation')) {
+			$menu2[__('Neighbors', 'neighbor')]['plugins/neighbor/neighbor_rules.php']        = __('Map Rules', 'neighbor');
+			$menu2[__('Neighbors', 'neighbor')]['plugins/neighbor/neighbor_vrf_rules.php']        = __('VRF Mapping', 'neighbor');
+		}
+	}
+	$menu = $menu2;
+	$menu_glyphs[__('Neighbors', 'neighbor')] = 'fa fa-group';
+	
 	neighbor_check_upgrade();
 }
 
@@ -473,7 +483,7 @@ function neighbor_device_action_prepare($save) {
                         <td colspan='2' class='even'>
                                 <p>" . __('Click \'Continue\' to %s neighbor discovery on these device(s)', $action_description, 'neighbor') . "</p>
                                 <p><div class='itemlist'><ul>" . $save['host_list'] . "</ul></div></p>
-                        </td>
+                       </td>
                 </tr>";
         } else {
                 print "<tr>

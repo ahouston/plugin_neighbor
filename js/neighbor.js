@@ -3,7 +3,7 @@
 var mapList = [];
 var mapToolbar;
 var selectBox;
-var rule_id;
+var rule_id = 1;
 var	user_id;
 
 // Get the list of maps from AJAX
@@ -13,11 +13,9 @@ var ruleDropdown = function() {
 			method: "GET",
 			url: "ajax.php?action=ajax_map_list&format=jsonp",
 			dataType: "jsonp",
-			// Work with the response
 			success: function( response ) {
 				console.log(response);
-				obj = typeof(response.Response[0]) === 'undefined' ? [] : response.Response[0];
-				var mapList = obj;
+				mapList = typeof(response.Response[0]) === 'undefined' ? [] : response.Response[0];
 				selectBox.option('items',mapList);
 			}
 	});
@@ -38,29 +36,26 @@ $(document).ready(function() {
 		},
 		{ 
 		    id: 1,
-		    text: "Interface", 
+		    text: "Interface Neighbors", 
 		    icon: "fa fa-link", 
 		    content: "neighbor_interface" 
 		},
 		{ 
 		    id: 2,
-		    text: "Routing", 
+		    text: "Routing Neighbors", 
 		    icon: "fa fa-cloud", 
 		    content: "neighbor_routing" 
 		},
-		{ 
-		    id: 3,
-		    text: "Summary", 
-		    icon: "fa fa-list", 
-		    content: "neighbor_summary" 
-		},			
 	];
 	
 	// Main dxTabs row
 	
+	var tabSelected = $("#tab_selected").length > 0 ? $("#tab_selected") : 0;
+	
 	$("#neighbor_tabs").dxTabs({
 	    items: tabs,
 	    width: "99%",
+		selectedIndex: tabSelected,
 	    onItemClick: function(e) {
 		var redirectUrl = 'neighbor.php?action=' + e.itemData.content;
 		window.location.href = redirectUrl;
@@ -83,15 +78,16 @@ $(document).ready(function() {
 			},
 			dataSource: [
 				{
-					location: 'before',
-					widget: 'dxButton',
-					options: {
-						text: 'Select Map',
-						hoverStateEnabled: false,
-					}
+				location: 'before',
+				locateInMenu: 'auto',
+				locateInMenu: 'never',
+                template: function() {
+						return $("<div class='toolbar-label' style='padding-left: 10px;'><b>Select a Map :</b></div>");
+					},
 				},
 				{
 					location: 'before',
+					locateInMenu: 'auto',
 					widget: 'dxSelectBox',
 					options: {
 						items: [],
@@ -101,6 +97,12 @@ $(document).ready(function() {
 							var icon = data.neighbor_type == 'interface' ? 'fa fa-link' : 'fa fa-cloud';
 							return "<div class='custom-item'><span class='"+icon+"' style='padding-right: 5px'></span>"+ data.name +"</div>";
 						},
+						onValueChanged: function(e){
+							var value = e.value;
+							console.log("Drawing graph with id:",value);
+							rule_id = value;
+							drawMap();
+						},
 						onInitialized: function(e) {                 
 							selectBox = e.component; 				// Save the component to access later
 						}
@@ -108,10 +110,72 @@ $(document).ready(function() {
 				},
 				{
 					location: 'before',
+					locateInMenu: 'auto',
 					widget: 'dxTextBox',
 					options: {
 						placeholder: "Filter the hosts",
 						onChange: function(e) { console.log("E is:",e); filterHosts(e);}
+					}
+					
+				},
+				{
+				location: 'before',
+				locateInMenu: 'auto',
+				//locateInMenu: 'never',
+                template: function() {
+						return $("<div class='toolbar-label' style='padding-left: 10px;'><b>Last Seen :</b></div>");
+					},
+				},
+				{
+					location: 'before',
+					locateInMenu: 'auto',
+					widget: 'dxSlider',
+					options: {
+						min: 1,
+						max: 14,
+						value: 3,
+						width: 100,
+						rtlEnabled: false,
+						tooltip: {
+							enabled: true,
+							format: function (value) {
+								return value + " days";
+							},
+							position: "bottom"
+						},
+						onValueChanged: function(e) { updateLastSeen(e);},
+					}
+					
+				},
+				{
+				location: 'before',
+				locateInMenu: 'auto',
+				//locateInMenu: 'never',
+                template: function() {
+						return $("<div class='toolbar-label' style='padding-left: 10px;'><b>Map Rotation:</b></div>");
+					},
+				},
+				{
+					location: 'before',
+					locateInMenu: 'auto',
+					widget: 'dxSlider',
+					options: {
+						min: -180,
+						max: 180,
+						value: 0,
+						step: 5,
+						keyStep: 5,
+						width: 150,
+						rtlEnabled:true,
+						label: {visible: true },
+						tooltip: {
+							enabled: true,
+							format: function (value) {
+								return value + "°";
+							},
+							position: "bottom"
+						},
+						onValueChanged: function(e) { rotateMap(e);},
 					}
 					
 				},

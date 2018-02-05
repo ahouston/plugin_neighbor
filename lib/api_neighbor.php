@@ -914,7 +914,7 @@ function neighbor_display_new_graphs($rule, $url) {
 		$all_neighbor_objects = dedup_by_hash($all_neighbor_objects);
 		$total_rows = sizeof($all_neighbor_objects);
 		$neighbor_objects = array_slice($all_neighbor_objects,$start_rec,$rows);
-		error_log(print_r($neighbor_objects,1));
+		//error_log(print_r($neighbor_objects,1));
 		
 		//error_log("Query: $sql_query");
 		//pre_print_r($neighbor_objects,"OINK $sql_query:");
@@ -997,8 +997,9 @@ function neighbor_rule_to_json($rule_id) {
 function ajax_interface_nodes($rule_id = '', $ajax = true, $format = 'jsonp') {
 	
 	$rule_id = $rule_id 					? $rule_id  				: (isset_request_var('rule_id') ? get_request_var('rule_id') 	: '');
-	$ajax = isset_request_var('ajax') 		? get_request_var('ajax') 	: $ajax;
+	$ajax 	= isset_request_var('ajax') 	? get_request_var('ajax') 	: $ajax;
 	$format = isset_request_var('format') 	? get_request_var('format') : $format;
+	$last_seen = isset_request_var('last_seen') ? get_request_var('last_seen') : "";
 	$host_filter = isset_request_var('host_filter') ? get_request_var('host_filter') : "";
 	$edge_filter = isset_request_var('edge_filter') ? get_request_var('edge_filter') : "";
 	$host_filter = "";
@@ -1037,12 +1038,8 @@ function ajax_interface_nodes($rule_id = '', $ajax = true, $format = 'jsonp') {
 	// First check if we have a stored map for this user
 	
 	$user_id = isset($_SESSION['sess_user_id']) ? $_SESSION['sess_user_id'] : 0;
-	if ($host_filter) {
-		$stored_map = db_fetch_assoc_prepared("SELECT * from plugin_neighbor__user_map where user_id=? AND rule_id=? AND item_label LIKE '%?%'",array($user_id,$rule_id,$host_filter));
-	}
-	else {
-		$stored_map = db_fetch_assoc_prepared("SELECT * from plugin_neighbor__user_map where user_id=? AND rule_id=?",array($user_id,$rule_id));
-	}
+	error_log("Looking for saved map positions for user: $user_id, map: $rule_id");
+	$stored_map = db_fetch_assoc_prepared("SELECT * from plugin_neighbor__user_map where user_id=? AND rule_id=?",array($user_id,$rule_id));
 	if (sizeof($stored_map)) {
 
 			foreach ($stored_map as $row) {
@@ -1052,13 +1049,13 @@ function ajax_interface_nodes($rule_id = '', $ajax = true, $format = 'jsonp') {
 					'label' => $row['item_label'],
 					'x'		=> $row['item_x'],
 					'y'		=> $row['item_y'],
-					'mass'	=> 1,
+					'mass'	=> 2,
 					'physics' => false
 				);
 				$data['seed'] = (int) $row['random_seed'];
 			}
 			$data['physics'] = true;
-			error_log("Nodes[]: ".print_r($projected,true));
+			//error_log("Nodes[]: ".print_r($projected,true));
 	}
 	else {
 	
@@ -1081,7 +1078,7 @@ function ajax_interface_nodes($rule_id = '', $ajax = true, $format = 'jsonp') {
 					'label' => $label,
 					'x'		=> $x,
 					'y'		=> $y,
-					'mass'	=> $mass,
+					//'mass'	=> $mass,
 				);
 				
 				// Now we need to project these onto the screen resolution surface to get a more natural looking map
@@ -1137,7 +1134,8 @@ function ajax_interface_nodes($rule_id = '', $ajax = true, $format = 'jsonp') {
 					'poller' => $poller_json,
 					'rrd_file'=> $rrd_file,
 					'graph_id'=> $graph_local_id,
-					'value'	=> $rec3['interface_speed']
+					'value'	=> $rec3['interface_speed'],
+					'last_seen' => $rec3['last_seen']
 					//'length'=> $length
 				);
 			}
@@ -1173,7 +1171,7 @@ function ajax_interface_nodes($rule_id = '', $ajax = true, $format = 'jsonp') {
 
 function update_edges_db($rule_id,$edges) {
 	error_log("update_edges_db() is running.");
-	error_log("Edges is:".print_r($edges,1));
+	//error_log("Edges is:".print_r($edges,1));
 	db_execute_prepared("DELETE FROM plugin_neighbor__edge where rule_id = ? and edge_updated < DATE_SUB(NOW(), INTERVAL 1 DAY)",array(1));
 	foreach ($edges as $edge) {
 		$edge_json = json_encode($edge);
@@ -1259,6 +1257,7 @@ function display_interface_map($rule_id = 1) {
 	// Load the visjs JS libraries
 	printf("<link href='%s' rel='stylesheet'>",'js/visjs/vis.min.css');
 	printf("<script type='text/javascript' src='%s'></script>",'js/visjs/vis.min.js');
+	printf("<script type='text/javascript' src='%s'></script>",'js/moment.min.js');
 	printf("<script type='text/javascript' src='%s'></script>",'js/map.js');
 	
 	// Print the div to hold the map in

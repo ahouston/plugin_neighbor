@@ -760,6 +760,212 @@ function neighbor_get_allowed_devices($sql_where = '', $order_by = 'description'
 	return $host_list;
 }
 
+/* VRF Mapping Functions */
+
+// Get the VRF maps for all vrf rules defined
+function get_neighbor_vrf_maps() {
+	
+	$rules = get_vrf_rules();
+	foreach ($rules as $rule) {
+		
+		$rule_id 		= isset($rule['id']) ? $rule['id'] : 0;
+		$rule_name	= isset($rule['name']) ? $rule['name'] : "";
+		$vrf 				= isset($rule['vrf']) ? $rule['vrf'] : "";
+		// Mapping will be an associative array indexed on $mapping[host_id][ip_address] = record
+		$mapping = [];
+		if ($rule_id) {
+			
+				$sql_query = neighbor_build_vrf_data_query_sql($rule);
+				$result = db_fetch_assoc($sql_query);
+				$result_vrf = [];
+				// Merge the VRF name into the results
+				foreach ($result as $result) { $result['vrf'] = $vrf; $result_vrf[] = $result;}
+				$hash = db_fetch_hash($result_vrf,array("host_id","ip_address"));
+				$mapping = array_replace($mapping,$hash);				
+				//cacti_log("get_neighbor_vrf_maps(): Rule '$rule_name'=".pre_print_r($mapping,"VRF:",false),false, 'NEIGHBOR TRACE');
+		}
+		
+	}
+	return($mapping);
+}
+
+// Get a list of the vrf rules
+function get_vrf_rules() {
+	$rules = db_fetch_assoc("SELECT * from plugin_neighbor__vrf_rules");
+	return($rules);
+}
+
+function neighbor_build_vrf_data_query_sql($rule,$host_filter = '',$edge_filter='') {
+	cacti_log(__FUNCTION__ . ' called: ' . serialize($rule), false, 'NEIGHBOR TRACE', POLLER_VERBOSITY_HIGH);
+
+	/*
+	$field_names = get_field_names($rule['snmp_query_id']);
+	$sql_query = 'SELECT h.description AS automation_host, host_id, h.disabled, h.status, snmp_query_id, snmp_index ';
+	$i = 0;
+	*/
+	
+	$sql_query = 'SELECT h.description AS automation_host, h.disabled, h.status ';
+	$neighbor_options = isset($rule['neighbor_options']) ? explode(",",$rule['neighbor_options']) : array();
+		
+	$tables = array("plugin_neighbor__ipv4_cache as cache");
+	$table_join = array("LEFT JOIN plugin_neighbor__ipv4_cache cache ON cache.host_id=h.id");
+	$cols = db_get_table_column_types("plugin_neighbor__ipv4_cache");
+	foreach ($cols as $col => $rec) {
+		$sql_query .= ", cache.$col";
+	}
+						
+
+	/* take matching hosts into account */
+	$rule_id = isset($rule['id']) ? $rule['id'] : '';
+	$sql_where = "(".neighbor_build_vrf_matching_objects_filter($rule_id, AUTOMATION_RULE_TYPE_GRAPH_MATCH).")";
+	$sql_where2 = "(".neighbor_build_vrf_object_rule_item_filter($rule_id).")";
+	$sql_where_combined = array($sql_where,$sql_where2);
+	
+	//if ($host_filter) { array_push($sql_where_combined,"(h.description like '%$host_filter%')");}
+	
+	$table_list = implode(",",$tables);
+	$table_join_list = implode(" ",$table_join);
+	$query_where = sizeof($sql_where_combined) ? "WHERE ".implode(" AND ",$sql_where_combined) : "";
+	/* build magic query, for matching hosts JOIN tables host and host_template */
+	$sql_query .= " FROM host as h
+		$table_join_list
+	    $query_where
+	";
+
+	error_log("neighbor_build_data_query_sql():".$sql_query);
+	cacti_log(__FUNCTION__ . ' returns: ' . $sql_query, false, 'NEIGHBOR TRACE', POLLER_VERBOSITY_HIGH);
+
+	return $sql_query;
+}
+
+
+function neighbor_build_vrf_object_rule_item_filter($rule_id, $prefix = '') {
+	
+	global $automation_op_array, $automation_oper;
+	$sql_filter = '';
+	
+	if ($rule_id) {
+		
+		$object_rule_items = db_fetch_assoc_prepared("SELECT * from plugin_neighbor__vrf_rule_items where rule_id=?",array($rule_id));
+	
+		if (sizeof($object_rule_items)) {
+			$sql_filter = ' ';
+	
+			foreach($object_rule_items as $object_rule_item) {
+				# AND|OR|(|)
+				if ($object_rule_item['operation'] != AUTOMATION_OPER_NULL) {
+					$sql_filter .= ' ' . $automation_oper[$object_rule_item['operation']];
+				}
+	
+				# right bracket ')' does not come with a field
+				if ($object_rule_item['operation'] == AUTOMATION_OPER_RIGHT_BRACKET) {
+					continue;
+				}
+	
+				# field name
+				if ($object_rule_item['field'] != '') {
+					
+					$sql_filter .= (' ' . $prefix . '`' . implode('`.`', explode('.', $object_rule_item['field'])) . '`');
+					#
+					$sql_filter .= ' ' . $automation_op_array['op'][$object_rule_item['operator']] . ' ';
+					if ($automation_op_array['binary'][$object_rule_item['operator']]) {
+						$sql_filter .= (db_qstr($automation_op_array['pre'][$object_rule_item['operator']] . $object_rule_item['pattern'] . $automation_op_array['post'][$object_rule_item['operator']]));
+					}
+				}
+			}
+		}
+	}
+
+	cacti_log(__FUNCTION__ . ' returns: ' . $sql_filter, false, 'AUTOM8 TRACE', POLLER_VERBOSITY_HIGH);
+
+	return $sql_filter;
+}
+
+function neighbor_build_vrf_matching_objects_filter($rule_id, $rule_type) {
+	cacti_log(__FUNCTION__ . " called rule id: $rule_id", false, 'NEIGHBOR TRACE', POLLER_VERBOSITY_HIGH);
+
+	$sql_filter = '';
+
+	/* create an SQL which queries all host related tables in a huge join
+	 * this way, we may add any where clause that might be added via
+	 *  'Matching Device' match
+	 */
+	$rule_items = db_fetch_assoc_prepared('SELECT *
+		FROM plugin_neighbor__vrf_match_rule_items
+		WHERE rule_id = ?
+		AND rule_type = ?
+		ORDER BY sequence',
+		array($rule_id, $rule_type));
+
+	#print '<pre>Items: $sql<br>'; print_r($rule_items); print '</pre>';
+
+	if (sizeof($rule_items)) {
+		$sql_filter	= neighbor_build_vrf_rule_item_filter($rule_items);
+	} else {
+		/* force empty result set if no host matching rule item present */
+		$sql_filter = ' (1 != 1)';
+	}
+
+	cacti_log(__FUNCTION__ . ' returns: ' . $sql_filter, false, 'NEIGHBOR TRACE', POLLER_VERBOSITY_HIGH);
+
+	return $sql_filter;
+}
+
+
+function neighbor_build_vrf_rule_item_filter($automation_rule_items, $prefix = '') {
+	global $automation_op_array, $automation_oper;
+
+	cacti_log(__FUNCTION__ . ' called: ' . serialize($automation_rule_items) . ", prefix: $prefix", false, 'NEIGHBOR TRACE', POLLER_VERBOSITY_HIGH);
+
+	$sql_filter = '';
+	if (sizeof($automation_rule_items)) {
+		$sql_filter = ' ';
+
+		foreach($automation_rule_items as $automation_rule_item) {
+			# AND|OR|(|)
+			if ($automation_rule_item['operation'] != AUTOMATION_OPER_NULL) {
+				$sql_filter .= ' ' . $automation_oper[$automation_rule_item['operation']];
+			}
+
+			# right bracket ')' does not come with a field
+			if ($automation_rule_item['operation'] == AUTOMATION_OPER_RIGHT_BRACKET) {
+				continue;
+			}
+
+			# field name
+			if ($automation_rule_item['field'] != '') {
+				$sql_filter .= (' ' . $prefix . '`' . implode('`.`', explode('.', $automation_rule_item['field'])) . '`');
+				#
+				$sql_filter .= ' ' . $automation_op_array['op'][$automation_rule_item['operator']] . ' ';
+				if ($automation_op_array['binary'][$automation_rule_item['operator']]) {
+					$sql_filter .= (db_qstr($automation_op_array['pre'][$automation_rule_item['operator']] . $automation_rule_item['pattern'] . $automation_op_array['post'][$automation_rule_item['operator']]));
+				}
+			}
+		}
+	}
+
+	cacti_log(__FUNCTION__ . ' returns: ' . $sql_filter, false, 'NEIGHBOR TRACE', POLLER_VERBOSITY_HIGH);
+
+	return $sql_filter;
+}
+
+/* Helper Functions */
+
+
+// For PHP pre-5.3 put in an array_replace function
+if(!function_exists("array_replace")){
+		function array_replace(){
+			 $args = func_get_args();
+			 $ret = array_shift($args);
+			 foreach($args as $arg){
+					 foreach($arg as $k=>$v){
+							$ret[(string)$k] = $v;
+					 }
+			 }
+			 return $ret;
+	 }
+}
+
 function snipToDots($str,$len) {
     
     if(strlen($str)<=$len) { return "<span>$str</span>";}
@@ -769,12 +975,22 @@ function snipToDots($str,$len) {
     }
 }
 
-function pre_print_r($arr,$tag = '') {
+function pre_print_r($arr,$tag = '',$print = true) {
     
-    print "<pre>";
-		if ($tag) { print "$tag\n";}
-    print_r($arr);
-    print "</pre>";
+		if ($print) {
+			print "<pre>";
+			if ($tag) { print "$tag\n";}
+			print_r($arr);
+			print "</pre>";
+		}
+		else {
+			$buffer = print_r($arr,true);
+			$ret = "";
+			foreach (explode("\n",$buffer) as $line) {
+						$ret.= $tag ? "$tag: ".$line."\n" : "$line\n";
+			}
+			return($ret);
+		}
     
 }
 
@@ -1032,4 +1248,48 @@ $neighbor_interface_new_graph_fields = array(
 	'neighbor_interface_name'	=> 'B - Interface',
 	'neighbor_interface_alias'	=> 'B - Description'
 );
+
+// VRF Arrays
+
+$neighbor_vrf_object_fields = array(
+	'hostname'	=>	'Hostname',
+	'ip_address'	=> 'IP Address',
+	'ip_netmask'	=> 'IP Netmask',
+	'snmp_id'	=> 'SNMP Index',
+	'vrf' 		=>	'VRF Name',
+	'last_seen'	=> 'Last Seen',
+);
+
+
+$fields_neighbor_vrf_rules_edit1 = array(
+	'name' => array(
+		'method' => 'textbox',
+		'friendly_name' => __('Name'),
+		'description' => __('A useful name for this Rule.'),
+		'value' => '|arg1:name|',
+		'max_length' => '255',
+		'size' => '80'
+	),
+	'description' => array(
+		'method' => 'textbox',
+		'friendly_name' => __('Description'),
+		'description' => __('A friendly description of this Rule.'),
+		'value' => '|arg1:description|',
+		'max_length' => '255',
+		'size' => '80'
+	)
+);
+
+$fields_neighbor_vrf_rules_edit2 = array(
+	'enabled' => array(
+		'method' => 'checkbox',
+		'friendly_name' => __('Enable Rule'),
+		'description' => __('Check this box to enable this rule.'),
+		'value' => '|arg1:enabled|',
+		'default' => '',
+		'form_id' => false
+	)
+);
+
+
 ?>
